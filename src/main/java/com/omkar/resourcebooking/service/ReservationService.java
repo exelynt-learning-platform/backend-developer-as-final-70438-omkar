@@ -110,8 +110,13 @@ public class ReservationService {
     }
 
     public ReservationResponse updateReservation(Long id, ReservationRequest request) {
+        User currentUser = getAuthenticatedUser();
         Reservation reservation = reservationRepository.findById(id)
                 .orElseThrow(() -> new ReservationNotFoundException("Reservation not found with id: " + id));
+
+        if (currentUser.getRole() == Role.USER && !reservation.getUser().getId().equals(currentUser.getId())) {
+            throw new AccessDeniedException("Access denied: You cannot modify another user's reservation");
+        }
 
         if (request.getStartTime() != null && request.getEndTime() != null) {
             if (!request.getEndTime().isAfter(request.getStartTime())) {
@@ -136,8 +141,13 @@ public class ReservationService {
     }
 
     public void deleteReservation(Long id) {
+        User currentUser = getAuthenticatedUser();
         Reservation reservation = reservationRepository.findById(id)
                 .orElseThrow(() -> new ReservationNotFoundException("Reservation not found with id: " + id));
+
+        if (currentUser.getRole() == Role.USER && !reservation.getUser().getId().equals(currentUser.getId())) {
+            throw new AccessDeniedException("Access denied: You cannot delete another user's reservation");
+        }
 
         reservationRepository.delete(reservation);
     }
