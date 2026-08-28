@@ -118,12 +118,22 @@ public class ReservationService {
             throw new AccessDeniedException("Access denied: You cannot modify another user's reservation");
         }
 
-        if (request.getStartTime() != null && request.getEndTime() != null) {
-            if (!request.getEndTime().isAfter(request.getStartTime())) {
+        updateReservationFields(reservation, request);
+
+        Reservation updated = reservationRepository.save(reservation);
+        return mapToResponse(updated);
+    }
+
+    private void updateReservationFields(Reservation reservation, ReservationRequest request) {
+        if (request.getStartTime() != null || request.getEndTime() != null) {
+            java.time.LocalDateTime newStart = request.getStartTime() != null ? request.getStartTime() : reservation.getStartTime();
+            java.time.LocalDateTime newEnd = request.getEndTime() != null ? request.getEndTime() : reservation.getEndTime();
+
+            if (!newEnd.isAfter(newStart)) {
                 throw new BadRequestException("End time must be after start time");
             }
-            reservation.setStartTime(request.getStartTime());
-            reservation.setEndTime(request.getEndTime());
+            reservation.setStartTime(newStart);
+            reservation.setEndTime(newEnd);
         }
 
         if (request.getResourceId() != null) {
@@ -135,9 +145,6 @@ public class ReservationService {
         if (request.getPrice() != null) {
             reservation.setPrice(request.getPrice());
         }
-
-        Reservation updated = reservationRepository.save(reservation);
-        return mapToResponse(updated);
     }
 
     public void deleteReservation(Long id) {
@@ -167,11 +174,11 @@ public class ReservationService {
     );
 
     private Pageable createPageable(int page, int size, String sortParam) {
-        if (page < 0) page = 0;
-        if (size <= 0) size = 10;
+        int targetPage = (page < 0) ? 0 : page;
+        int targetSize = (size <= 0) ? 10 : size;
 
         if (sortParam == null || sortParam.trim().isEmpty()) {
-            return PageRequest.of(page, size, Sort.by("id").descending());
+            return PageRequest.of(targetPage, targetSize, Sort.by("id").descending());
         }
 
         String[] sortParts = sortParam.split(",");
@@ -187,7 +194,7 @@ public class ReservationService {
             direction = Sort.Direction.DESC;
         }
 
-        return PageRequest.of(page, size, Sort.by(direction, property));
+        return PageRequest.of(targetPage, targetSize, Sort.by(direction, property));
     }
 
     private ReservationResponse mapToResponse(Reservation reservation) {
