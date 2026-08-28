@@ -83,7 +83,7 @@ public class ReservationService {
         User currentUser = getAuthenticatedUser();
         String usernameFilter = null;
 
-        if (currentUser.getRole() == Role.USER) {
+        if (isUser(currentUser)) {
             usernameFilter = currentUser.getUsername();
         }
 
@@ -102,7 +102,7 @@ public class ReservationService {
         Reservation reservation = reservationRepository.findById(id)
                 .orElseThrow(() -> new ReservationNotFoundException("Reservation not found with id: " + id));
 
-        if (currentUser.getRole() == Role.USER && !reservation.getUser().getId().equals(currentUser.getId())) {
+        if (isUser(currentUser) && !isOwner(currentUser, reservation)) {
             throw new AccessDeniedException("Access denied: You do not own this reservation");
         }
 
@@ -114,7 +114,7 @@ public class ReservationService {
         Reservation reservation = reservationRepository.findById(id)
                 .orElseThrow(() -> new ReservationNotFoundException("Reservation not found with id: " + id));
 
-        if (currentUser.getRole() == Role.USER && !reservation.getUser().getId().equals(currentUser.getId())) {
+        if (isUser(currentUser) && !isOwner(currentUser, reservation)) {
             throw new AccessDeniedException("Access denied: You cannot modify another user's reservation");
         }
 
@@ -152,11 +152,24 @@ public class ReservationService {
         Reservation reservation = reservationRepository.findById(id)
                 .orElseThrow(() -> new ReservationNotFoundException("Reservation not found with id: " + id));
 
-        if (currentUser.getRole() == Role.USER && !reservation.getUser().getId().equals(currentUser.getId())) {
+        if (isUser(currentUser) && !isOwner(currentUser, reservation)) {
             throw new AccessDeniedException("Access denied: You cannot delete another user's reservation");
         }
 
         reservationRepository.delete(reservation);
+    }
+
+    private boolean isAdmin(User user) {
+        return user != null && user.getRole() == Role.ADMIN;
+    }
+
+    private boolean isUser(User user) {
+        return user != null && user.getRole() == Role.USER;
+    }
+
+    private boolean isOwner(User user, Reservation reservation) {
+        return user != null && reservation != null && reservation.getUser() != null
+                && user.getId().equals(reservation.getUser().getId());
     }
 
     private User getAuthenticatedUser() {
